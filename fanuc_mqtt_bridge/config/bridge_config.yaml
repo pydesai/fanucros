@@ -1,0 +1,47 @@
+robot:
+  ip: 192.168.1.100
+  rmi_port: 16001
+  timeout_sec: 1.0
+  backend: sim
+
+mqtt:
+  host: 127.0.0.1
+  port: 1883
+  username: fanuc
+  password: fanuc
+  client_id: fanuc-mqtt-bridge
+  keepalive_sec: 60
+  qos: 1
+  retain: false
+
+publish:
+  robot_id: crx10ia_prod_01
+  base_topic: fanuc/crx10ia_prod_01
+  rate_hz: 10
+  include_timestamp: true
+
+telemetry:
+  joints: true
+  status: true
+  status_ext: true
+  digital_inputs: [81, 82]
+  digital_outputs: [101, 102]
+  flags: [1, 2, 3]
+  analog_inputs: [1, 2]
+  analog_outputs: [1]
+  group_inputs: [1]
+  group_outputs: [1]
+  num_registers: [1, 2, 3]
+  pos_registers: [1]
+  variables: ["$STMO.$COM_INT", "$MOR_GRP[1].$ROB_MOVE"]
+
+writes:
+  enabled: false
+  startup_actions:
+    - action: set_gen_override
+      value: 100
+  cyclic_actions:
+    - action: set_num_register
+      index: 10
+      value: 1.5
+      interval_cycles: 100
