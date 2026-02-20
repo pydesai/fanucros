@@ -31,22 +31,35 @@ Using `publish.base_topic` (for example `fanuc/crx10ia_prod_01`):
 - `<base_topic>/variables`
 - `<base_topic>/errors`
 
-## Run
+## Simulator (Local ROS 2)
 
-### 1) Build
+The simulator is in-process via `robot.backend: sim` (no separate simulator binary).
+
+### 1) Start an MQTT broker
+
+```bash
+docker run --rm -d --name fanuc-mqtt-sim --network host eclipse-mosquitto:2
+```
+
+### 2) Build
 
 ```bash
 colcon build --packages-select fanuc_mqtt_bridge
 source install/setup.bash
 ```
 
-### 2) Configure
+### 3) Configure
 
 Edit:
 
 - `fanuc_mqtt_bridge/config/bridge_config.yaml`
 
-### 3) Launch
+Ensure:
+
+- `robot.backend: sim`
+- `mqtt.host` points to your broker (for example `127.0.0.1`)
+
+### 4) Launch
 
 ```bash
 ros2 launch fanuc_mqtt_bridge fanuc_mqtt_bridge.launch.py
@@ -58,6 +71,12 @@ Or run directly:
 ros2 run fanuc_mqtt_bridge fanuc_mqtt_bridge --ros-args -p config_file:=/absolute/path/to/bridge_config.yaml
 ```
 
+### 5) Stop MQTT broker (optional)
+
+```bash
+docker rm -f fanuc-mqtt-sim
+```
+
 ## Docker
 
 ### Build
@@ -66,7 +85,20 @@ ros2 run fanuc_mqtt_bridge fanuc_mqtt_bridge --ros-args -p config_file:=/absolut
 docker build -t fanuc-mqtt-bridge:local ./fanuc_mqtt_bridge
 ```
 
-### Run with env vars
+### Run in simulator mode (no robot hardware)
+
+```bash
+docker run --rm --network host \
+  -e ROBOT_BACKEND=sim \
+  -e ROBOT_IP=127.0.0.1 \
+  -e MQTT_HOST=127.0.0.1 \
+  -e MQTT_PORT=1883 \
+  -e MQTT_CLIENT_ID=fanuc-mqtt-bridge-sim \
+  -e PUBLISH_ROBOT_ID=crx10ia_sim_01 \
+  fanuc-mqtt-bridge:local
+```
+
+### Run against a FANUC controller
 
 Example for an external host connecting to a FANUC controller and MQTT broker:
 
