@@ -1,0 +1,12 @@
+Metadata-Version: 2.1
+Name: fanuc-mqtt-bridge
+Version: 0.1.0
+Summary: Bridge FANUC telemetry and optional write operations to MQTT.
+Home-page: UNKNOWN
+Maintainer: FANUC CORPORATION
+Maintainer-email: fanuc-ros-maintainer@fanuc.co.jp
+License: Apache-2.0
+Platform: UNKNOWN
+
+UNKNOWN
+

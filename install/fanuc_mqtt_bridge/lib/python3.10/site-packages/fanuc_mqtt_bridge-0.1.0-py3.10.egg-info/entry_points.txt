@@ -1,0 +1,3 @@
+[console_scripts]
+fanuc_mqtt_bridge = fanuc_mqtt_bridge.bridge_node:main
+
