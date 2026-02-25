@@ -29,6 +29,7 @@ ENV BRIDGE_CONFIG_OUT=/tmp/bridge_config.generated.yaml
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-paho-mqtt \
+    python3-pip \
     python3-yaml \
     && rm -rf /var/lib/apt/lists/*
 
@@ -37,7 +38,8 @@ COPY config/bridge_config.yaml /opt/fanuc/config/bridge_config.yaml
 COPY docker/entrypoint.sh /opt/fanuc/entrypoint.sh
 COPY docker/entrypoint.py /opt/fanuc/entrypoint.py
 
-RUN chmod +x /opt/fanuc/entrypoint.sh /opt/fanuc/entrypoint.py
+RUN mkdir -p /opt/fanuc/ext && \
+    chmod +x /opt/fanuc/entrypoint.sh /opt/fanuc/entrypoint.py
 
 ENTRYPOINT ["/opt/fanuc/entrypoint.sh"]
 CMD []

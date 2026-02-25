@@ -91,6 +91,7 @@ docker run --rm --network host \
 ```bash
 docker run --rm --network host \
   -e ROBOT_IP=192.168.1.100 \
+  -e ROBOT_RMI_PORT=8193 \
   -e ROBOT_BACKEND=fanuc_rmi \
   -e MQTT_HOST=127.0.0.1 \
   -e MQTT_PORT=1883 \
@@ -101,9 +102,18 @@ docker run --rm --network host \
   fanuc-mqtt-bridge:local
 ```
 
+If `fanuc_rmi` is not already installed in the image, mount a wheel and set:
+
+```bash
+-v /absolute/path/to/fanuc_rmi-<version>-py3-none-any.whl:/opt/fanuc/ext/fanuc_rmi.whl:ro \
+-e FANUC_RMI_PIP_SPEC=/opt/fanuc/ext/fanuc_rmi.whl
+```
+
 Notes:
 
 - `fanuc_rmi` Python binding is required for `ROBOT_BACKEND=fanuc_rmi` and is not provided by this repo.
+- `ROBOT_RMI_PORT` is the preferred port variable; `ROBOT_PORT` is accepted as a legacy alias.
+- On Docker Desktop (Windows/macOS), use `MQTT_HOST=host.docker.internal` to reach a broker on the host.
 - If `BRIDGE_CONFIG_FILE` is set, the container uses that file directly.
 - Full env-var reference is in `fanuc_mqtt_bridge/README.md`.
 

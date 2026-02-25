@@ -105,7 +105,26 @@ Example for an external host connecting to a FANUC controller and MQTT broker:
 ```bash
 docker run --rm --network host \
   -e ROBOT_IP=192.168.1.100 \
+  -e ROBOT_RMI_PORT=8193 \
   -e ROBOT_BACKEND=fanuc_rmi \
+  -e MQTT_HOST=127.0.0.1 \
+  -e MQTT_PORT=1883 \
+  -e MQTT_USERNAME=fanuc \
+  -e MQTT_PASSWORD=fanuc \
+  -e PUBLISH_ROBOT_ID=crx10ia_prod_01 \
+  -e PUBLISH_BASE_TOPIC=fanuc/crx10ia_prod_01 \
+  fanuc-mqtt-bridge:local
+```
+
+If your image does not already include the FANUC Python RMI binding, mount a wheel and let the container install it at startup:
+
+```bash
+docker run --rm --network host \
+  -v /absolute/path/to/fanuc_rmi-<version>-py3-none-any.whl:/opt/fanuc/ext/fanuc_rmi.whl:ro \
+  -e ROBOT_IP=192.168.1.100 \
+  -e ROBOT_RMI_PORT=8193 \
+  -e ROBOT_BACKEND=fanuc_rmi \
+  -e FANUC_RMI_PIP_SPEC=/opt/fanuc/ext/fanuc_rmi.whl \
   -e MQTT_HOST=127.0.0.1 \
   -e MQTT_PORT=1883 \
   -e MQTT_USERNAME=fanuc \
@@ -120,7 +139,7 @@ Otherwise it starts from the template config and applies env var overrides.
 
 Supported env vars:
 
-- `ROBOT_IP`, `ROBOT_RMI_PORT`, `ROBOT_TIMEOUT_SEC`, `ROBOT_BACKEND`
+- `ROBOT_IP`, `ROBOT_RMI_PORT`, `ROBOT_PORT` (legacy alias), `ROBOT_TIMEOUT_SEC`, `ROBOT_BACKEND`
 - `MQTT_HOST`, `MQTT_PORT`, `MQTT_USERNAME`, `MQTT_PASSWORD`, `MQTT_CLIENT_ID`, `MQTT_KEEPALIVE_SEC`, `MQTT_QOS`, `MQTT_RETAIN`
 - `PUBLISH_ROBOT_ID`, `PUBLISH_BASE_TOPIC`, `PUBLISH_RATE_HZ`, `PUBLISH_INCLUDE_TIMESTAMP`
 - `TELEMETRY_JOINTS`, `TELEMETRY_STATUS`, `TELEMETRY_STATUS_EXT`
@@ -129,13 +148,18 @@ Supported env vars:
 - `TELEMETRY_GROUP_INPUTS`, `TELEMETRY_GROUP_OUTPUTS`
 - `TELEMETRY_NUM_REGISTERS`, `TELEMETRY_POS_REGISTERS`, `TELEMETRY_VARIABLES`
 - `WRITES_ENABLED`, `WRITES_STARTUP_ACTIONS_JSON`, `WRITES_CYCLIC_ACTIONS_JSON`
+- `FANUC_RMI_PIP_SPEC`, `FANUC_RMI_PIP_EXTRA_ARGS`
 - `BRIDGE_CONFIG_FILE`, `BRIDGE_CONFIG_TEMPLATE`, `BRIDGE_CONFIG_OUT`
 
 Notes:
 
 - List env vars use comma-separated values, for example: `TELEMETRY_DIGITAL_INPUTS=81,82,83`.
 - `WRITES_STARTUP_ACTIONS_JSON` and `WRITES_CYCLIC_ACTIONS_JSON` must be JSON arrays.
-- `fanuc_rmi` Python binding is not included in this repository. For real-controller polling (`ROBOT_BACKEND=fanuc_rmi`), provide a compatible `fanuc_rmi` module in your image/runtime. With `ROBOT_BACKEND=auto`, the bridge tries `fanuc_rmi` and falls back to simulator if unavailable.
+- `fanuc_rmi` Python binding is not included in this repository. For real-controller polling (`ROBOT_BACKEND=fanuc_rmi`), provide a compatible `fanuc_rmi` module in your image/runtime.
+- On startup, the container checks for `fanuc_rmi`. If missing, it can install from `FANUC_RMI_PIP_SPEC`, or from a wheel mounted as `/opt/fanuc/ext/fanuc_rmi*.whl`.
+- With `ROBOT_BACKEND=auto`, the bridge tries `fanuc_rmi` and falls back to simulator if unavailable.
+- `ROBOT_RMI_PORT` is the preferred port variable (`ROBOT_PORT` is a legacy alias).
+- On Docker Desktop (Windows/macOS), use `MQTT_HOST=host.docker.internal` to reach a broker running on the host.
 
 ## Config schema
 

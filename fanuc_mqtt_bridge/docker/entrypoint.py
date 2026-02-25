@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import importlib
 import json
 import os
+import shlex
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any, Callable
 
@@ -103,6 +107,70 @@ def write_yaml(path: Path, content: dict[str, Any]) -> None:
         yaml.safe_dump(content, f, sort_keys=False)
 
 
+def parse_backend(value: Any) -> str:
+    return str(value or "auto").strip().lower()
+
+
+def has_fanuc_rmi_module() -> bool:
+    try:
+        importlib.import_module("fanuc_rmi")
+        return True
+    except ImportError:
+        return False
+
+
+def discover_fanuc_rmi_spec() -> str:
+    spec = os.getenv("FANUC_RMI_PIP_SPEC", "").strip()
+    if spec:
+        return spec
+    ext_dir = Path("/opt/fanuc/ext")
+    if not ext_dir.exists():
+        return ""
+    wheels = sorted(ext_dir.glob("fanuc_rmi*.whl"))
+    if not wheels:
+        return ""
+    return str(wheels[-1])
+
+
+def install_fanuc_rmi(spec: str) -> None:
+    cmd = [sys.executable, "-m", "pip", "install", "--no-cache-dir"]
+    extra_args = os.getenv("FANUC_RMI_PIP_EXTRA_ARGS", "").strip()
+    if extra_args:
+        cmd.extend(shlex.split(extra_args))
+    cmd.extend(shlex.split(spec))
+    subprocess.run(cmd, check=True)
+
+
+def ensure_fanuc_rmi_available(backend: str) -> None:
+    if backend not in {"auto", "fanuc_rmi"}:
+        return
+
+    if has_fanuc_rmi_module():
+        print("fanuc_rmi module detected.")
+        return
+
+    spec = discover_fanuc_rmi_spec()
+    if spec:
+        print(f"fanuc_rmi module not found; installing via pip spec: {spec}")
+        try:
+            install_fanuc_rmi(spec)
+        except subprocess.CalledProcessError as exc:
+            raise SystemExit(f"Failed to install fanuc_rmi from `{spec}`: {exc}") from exc
+
+        if has_fanuc_rmi_module():
+            print("fanuc_rmi module installed successfully.")
+            return
+
+    if backend == "fanuc_rmi":
+        raise SystemExit(
+            "ROBOT_BACKEND=fanuc_rmi requires Python module `fanuc_rmi`. "
+            "Provide FANUC_RMI_PIP_SPEC (for example `/opt/fanuc/ext/fanuc_rmi.whl`) "
+            "or mount a wheel to `/opt/fanuc/ext/fanuc_rmi*.whl`."
+        )
+
+    print("fanuc_rmi module unavailable; continuing with backend=auto.")
+
+
 def main() -> None:
     config_file = os.getenv("BRIDGE_CONFIG_FILE", "").strip()
     if config_file:
@@ -110,6 +178,8 @@ def main() -> None:
         if not path.exists():
             raise SystemExit(f"BRIDGE_CONFIG_FILE does not exist: {path}")
         print(f"Using provided config file: {path}")
+        config = load_yaml(path)
+        ensure_fanuc_rmi_available(parse_backend(config.get("robot", {}).get("backend", "auto")))
     else:
         template_path = Path(
             os.getenv("BRIDGE_CONFIG_TEMPLATE", "/opt/fanuc/config/bridge_config.yaml")
@@ -211,11 +281,22 @@ def main() -> None:
         for path_tuple, env_name, parser in overrides:
             apply_override(config, path_tuple, env_name, parser)
 
+        # Backward-compatible alias for users passing ROBOT_PORT.
+        if "ROBOT_RMI_PORT" not in os.environ and "ROBOT_PORT" in os.environ:
+            set_nested(
+                config,
+                ("robot", "rmi_port"),
+                parse_int("ROBOT_PORT", os.environ["ROBOT_PORT"]),
+            )
+            print("ROBOT_PORT is deprecated; using it as ROBOT_RMI_PORT.")
+
         # If robot ID changes and base topic was not set explicitly, keep a sane default.
         if "PUBLISH_ROBOT_ID" in os.environ and "PUBLISH_BASE_TOPIC" not in os.environ:
             robot_id = str(config.get("publish", {}).get("robot_id", "")).strip()
             if robot_id:
                 set_nested(config, ("publish", "base_topic"), f"fanuc/{robot_id}")
+
+        ensure_fanuc_rmi_available(parse_backend(config.get("robot", {}).get("backend", "auto")))
 
         write_yaml(generated_path, config)
         path = generated_path
